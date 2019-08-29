@@ -135,10 +135,12 @@ public class GatewayWebsocketHandler extends WebSocketHandler
 
     try {
       final URI requestURI = req.getRequestURI();
+      LOG.logMessage("In createWebSocket() API for requestURI: " + requestURI.toString());
       final String path = requestURI.getPath();
 
       /* URL used to connect to websocket backend */
-      final String backendURL = getMatchedBackendURL(path);
+      final String backendURL = getMatchedBackendURL(path, requestURI);
+      LOG.logMessage("Generated backend URL for websocket connection: " + backendURL);
 
       /* Upgrade happens here */
       return new ProxyWebSocketAdapter(URI.create(backendURL), pool, getClientEndpointConfig(req));
@@ -161,10 +163,8 @@ public class GatewayWebsocketHandler extends WebSocketHandler
 
        @Override
        public void beforeRequest(final Map<String, List<String>> headers) {
-
          /* Add request headers */
          req.getHeaders().forEach(headers::putIfAbsent);
-
        }
     }).build();
   }
@@ -177,74 +177,100 @@ public class GatewayWebsocketHandler extends WebSocketHandler
    * @param
    * @return Websocket backend url
    */
-  private synchronized String getMatchedBackendURL(final String path) {
+  private synchronized String getMatchedBackendURL(final String path, URI requestURI) {
 
-    final ServiceRegistry serviceRegistryService = services
-        .getService(GatewayServices.SERVICE_REGISTRY_SERVICE);
+      final ServiceRegistry serviceRegistryService = services
+          .getService(GatewayServices.SERVICE_REGISTRY_SERVICE);
 
-    final ServiceDefinitionRegistry serviceDefinitionService = services
-        .getService(GatewayServices.SERVICE_DEFINITION_REGISTRY);
+      final ServiceDefinitionRegistry serviceDefinitionService = services
+          .getService(GatewayServices.SERVICE_DEFINITION_REGISTRY);
 
-    /* Filter out the /cluster/topology to get the context we want */
-    String[] pathInfo = path.split(REGEX_SPLIT_CONTEXT);
+      /* Filter out the /cluster/topology to get the context we want */
+      String[] pathInfo = path.split(REGEX_SPLIT_CONTEXT);
 
-    final ServiceDefEntry entry = serviceDefinitionService
-        .getMatchingService(pathInfo[1]);
+      final ServiceDefEntry entry = serviceDefinitionService
+          .getMatchingService(pathInfo[1]);
 
-    if (entry == null) {
-      throw new RuntimeException(
-          String.format("Cannot find service for the given path: %s", path));
-    }
-
-    /* Filter out /cluster/topology/service to get endpoint */
-    String[] pathService = path.split(REGEX_SPLIT_SERVICE_PATH);
-
-    final File servicesDir = new File(config.getGatewayServicesDir());
-
-    final Set<ServiceDefinition> serviceDefs = ServiceDefinitionsLoader
-        .getServiceDefinitions(servicesDir);
-
-    /* URL used to connect to websocket backend */
-    String backendURL = urlFromServiceDefinition(serviceDefs,
-        serviceRegistryService, entry, path);
-
-    StringBuffer backend = new StringBuffer();
-    try {
-
-      /* if we do not find websocket URL we default to HTTP */
-      if (!StringUtils.containsAny(backendURL, WEBSOCKET_PROTOCOL_STRING, SECURE_WEBSOCKET_PROTOCOL_STRING)) {
-        URL serviceUrl = new URL(backendURL);
-
-        /* Use http host:port if ws url not configured */
-        final String protocol = (serviceUrl.getProtocol() == "ws"
-                || serviceUrl.getProtocol() == "wss") ? serviceUrl.getProtocol()
-                : "ws";
-        backend.append(protocol).append("://");
-        backend.append(serviceUrl.getHost()).append(":");
-        backend.append(serviceUrl.getPort()).append("/");
-        backend.append(serviceUrl.getPath());
+      if (entry == null) {
+        throw new RuntimeException(
+            String.format("Cannot find service for the given path: %s", path));
       }
-      else {
-        URI serviceUri = new URI(backendURL);
-        backend.append(serviceUri);
-        /* Avoid Zeppelin Regression - as this would require ambari changes and break current knox websocket use case*/
-        if (!StringUtils.endsWith(backend.toString(), "/ws") && pathService.length > 0 && pathService[1] != null) {
-          backend.append(pathService[1]);
+
+      /* Filter out /cluster/topology/service to get endpoint */
+      String[] pathService = path.split(REGEX_SPLIT_SERVICE_PATH);
+
+      final File servicesDir = new File(config.getGatewayServicesDir());
+
+      final Set<ServiceDefinition> serviceDefs = ServiceDefinitionsLoader
+          .getServiceDefinitions(servicesDir);
+
+      /* URL used to connect to websocket backend */
+      String backendURL = urlFromServiceDefinition(serviceDefs,
+          serviceRegistryService, entry, path);
+
+      LOG.logMessage("Url obtained from services definition: " + backendURL);
+      
+      StringBuffer backend = new StringBuffer();
+      try {
+
+        /* if we do not find websocket URL we default to HTTP */
+        if (StringUtils.containsAny(backendURL.toString(), WEBSOCKET_PROTOCOL_STRING, SECURE_WEBSOCKET_PROTOCOL_STRING)) {
+          LOG.logMessage("ws or wss protocol found in service url");
+          URI serviceUri = new URI(backendURL);
+          backend.append(serviceUri);
+          /* Avoid Zeppelin Regression - as this would require ambari changes and break current knox websocket use case*/
+          if (!StringUtils.endsWith(backend.toString(), "/ws") && !StringUtils.endsWith(backend.toString(), "/websocket")
+                     && pathService.length > 0 && pathService[1] != null) {
+            String newPathSuffix = pathService[1];
+            if ((backend.toString().endsWith("/")) && (pathService[1].startsWith("/"))) {
+              newPathSuffix = pathService[1].substring(1);
+            }
+            backend.append(newPathSuffix);
+          }
+        } else if (StringUtils.containsAny(requestURI.toString(), WEBSOCKET_PROTOCOL_STRING, SECURE_WEBSOCKET_PROTOCOL_STRING)) {
+          LOG.logMessage("ws or wss protocol found in request url");
+          URL serviceUrl = new URL(backendURL);
+          final String protocol = (serviceUrl.getProtocol().equals("https")) ? "wss" : "ws";
+          backend.append(protocol).append("://");
+          backend.append(serviceUrl.getHost()).append(":");
+          backend.append(serviceUrl.getPort()).append("/");
+          backend.append(serviceUrl.getPath());
+          if (!StringUtils.endsWith(backend.toString(), "/ws") && !StringUtils.endsWith(backend.toString(), "/websocket")
+                     && pathService.length > 0 && pathService[1] != null) {
+            String newPathSuffix = pathService[1];
+            if ((backend.toString().endsWith("/")) && (pathService[1].startsWith("/"))) {
+              newPathSuffix = pathService[1].substring(1);
+            }
+            backend.append(newPathSuffix);
+          }
+        } else {
+          LOG.logMessage("ws or wss URI scheme not found in service url or request url");
+          URL serviceUrl = new URL(backendURL);
+
+          /* Use http host:port if ws url not configured */
+          final String protocol = (serviceUrl.getProtocol().equals("ws")
+                  || serviceUrl.getProtocol().equals("wss")) ? serviceUrl.getProtocol()
+                  : "ws";
+          backend.append(protocol).append("://");
+          backend.append(serviceUrl.getHost()).append(":");
+          backend.append(serviceUrl.getPort()).append("/");
+          backend.append(serviceUrl.getPath());
         }
+        backendURL = backend.toString();
+
+      } catch (MalformedURLException e){
+          LOG.badUrlError(e);
+          throw new RuntimeException(e.toString());
+      } catch (Exception  e1) {
+          LOG.failedCreatingWebSocket(e1);
+          throw new RuntimeException(e1.toString());
       }
-      backendURL = backend.toString();
 
-    } catch (MalformedURLException e){
-        LOG.badUrlError(e);
-        throw new RuntimeException(e.toString());
-    } catch (Exception  e1) {
-        LOG.failedCreatingWebSocket(e1);
-        throw new RuntimeException(e1.toString());
+      return backendURL;
     }
-
-    return backendURL;
-  }
-
+  
+  
+  
   private static String urlFromServiceDefinition(
       final Set<ServiceDefinition> serviceDefs,
       final ServiceRegistry serviceRegistry, final ServiceDefEntry entry,

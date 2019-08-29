@@ -162,6 +162,16 @@ public class ProxyInboundClientTest {
       }
 
       /**
+       * Callback when a Pong message is received.
+       *
+       * @param message
+       * @param session
+       */
+      @Override
+      public void onMessagePong(javax.websocket.PongMessage message, Object session) {
+      }
+
+      /**
        * Callback when a binary message is received.
        *
        * @param message
@@ -252,6 +262,16 @@ public class ProxyInboundClientTest {
       }
 
       /**
+       * Callback when a Pong message is received.
+       *
+       * @param message
+       * @param session
+       */
+      @Override
+      public void onMessagePong(javax.websocket.PongMessage message, Object session) {
+      }
+
+      /**
        * Callback when a binary message is received.
        *
        * @param message
@@ -339,6 +359,16 @@ public class ProxyInboundClientTest {
       public void onMessageText(String message, Object session) {
         recievedMessage = message;
         isTestComplete.set(true);
+      }
+
+      /**
+       * Callback when a Pong message is received.
+       *
+       * @param message
+       * @param session
+       */
+      @Override
+      public void onMessagePong(javax.websocket.PongMessage message, Object session) {
       }
 
       /**

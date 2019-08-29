@@ -56,6 +56,13 @@ public interface MessageEventCallback {
   void onMessageText(final String message, final Object session);
   
   /**
+   * Callback when a text message is received.
+   * @param message
+   * @param session
+   */
+  void onMessagePong(final javax.websocket.PongMessage message, final Object session);
+  
+  /**
    * Callback when a binary message is received.
    * @param message
    * @param last

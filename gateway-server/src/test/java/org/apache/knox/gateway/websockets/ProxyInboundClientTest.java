@@ -161,6 +161,16 @@ public class ProxyInboundClientTest {
       }
 
       /**
+       * Callback when a Pong message is received.
+       *
+       * @param message
+       * @param session
+       */
+      @Override
+      public void onMessagePong(javax.websocket.PongMessage message, Object session) {
+      }
+
+      /**
        * Callback when a binary message is received.
        *
        * @param message
@@ -251,6 +261,16 @@ public class ProxyInboundClientTest {
       }
 
       /**
+       * Callback when a Pong message is received.
+       *
+       * @param message
+       * @param session
+       */
+      @Override
+      public void onMessagePong(javax.websocket.PongMessage message, Object session) {
+      }
+
+      /**
        * Callback when a binary message is received.
        *
        * @param message
@@ -277,4 +297,107 @@ public class ProxyInboundClientTest {
 
     Assert.assertEquals("Binary message does not match", textMessage, new String(recievedBinaryMessage));
   }
+
+  @Test(timeout = 3000)
+  public void testTextMaxBufferLimit() throws IOException, DeploymentException {
+
+    final String longMessage = RandomStringUtils.random(100000);
+
+    final AtomicBoolean isTestComplete = new AtomicBoolean(false);
+
+    final WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+    final ProxyInboundClient client = new ProxyInboundClient( new MessageEventCallback() {
+
+      /**
+       * A generic callback, can be left un-implemented
+       *
+       * @param message
+       */
+      @Override
+      public void doCallback(String message) {
+
+      }
+
+      /**
+       * Callback when connection is established.
+       *
+       * @param session
+       */
+      @Override
+      public void onConnectionOpen(Object session) {
+
+      }
+
+      /**
+       * Callback when connection is closed.
+       *
+       * @param reason
+       */
+      @Override
+      public void onConnectionClose(CloseReason reason) {
+        isTestComplete.set(true);
+      }
+
+      /**
+       * Callback when there is an error in connection.
+       *
+       * @param cause
+       */
+      @Override
+      public void onError(Throwable cause) {
+        isTestComplete.set(true);
+      }
+
+      /**
+       * Callback when a text message is received.
+       *
+       * @param message
+       * @param session
+       */
+      @Override
+      public void onMessageText(String message, Object session) {
+        recievedMessage = message;
+        isTestComplete.set(true);
+      }
+
+      /**
+       * Callback when a Pong message is received.
+       *
+       * @param message
+       * @param session
+       */
+      @Override
+      public void onMessagePong(javax.websocket.PongMessage message, Object session) {
+      }
+
+      /**
+       * Callback when a binary message is received.
+       *
+       * @param message
+       * @param last
+       * @param session
+       */
+      @Override
+      public void onMessageBinary(byte[] message, boolean last,
+          Object session) {
+
+      }
+    } );
+
+    Assert.assertThat(client, instanceOf(javax.websocket.Endpoint.class));
+
+    Session session = container.connectToServer(client, serverUri);
+
+    session.getBasicRemote().sendText(longMessage);
+
+    while(!isTestComplete.get()) {
+      /* just wait for the test to finish */
+    }
+
+    Assert.assertEquals(longMessage, recievedMessage);
+
+  }
+
+
+
 }

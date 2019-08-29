@@ -70,6 +70,21 @@ public class ProxyInboundClient extends Endpoint {
 
     });
 
+    /* Add message handler for Pong Message */
+    session.addMessageHandler(new MessageHandler.Whole<javax.websocket.PongMessage>() {
+
+      /**
+       * Called when the message has been fully received.
+       *
+       * @param message the message data.
+       */
+      @Override
+      public void onMessage(final javax.websocket.PongMessage message) {
+        callback.onMessagePong(message, session);
+      }
+
+    });
+
     /* Add message handler for text data */
     session.addMessageHandler(new MessageHandler.Whole<String>() {
 

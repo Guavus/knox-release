@@ -20,6 +20,8 @@ package org.apache.knox.gateway.websockets;
 import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.ExecutorService;
+import java.util.List;
+import java.util.ArrayList;
 
 import javax.websocket.ClientEndpointConfig;
 import javax.websocket.CloseReason;
@@ -59,6 +61,9 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
 
   private ExecutorService pool;
 
+  private List<String> messageBuffer = null;
+  private static final int MAX_BUFFER_MESSAGE_COUNT = 100;
+
   /**
    * Used to transmit headers from browser to backend server.
    * @since 0.14
@@ -81,7 +86,6 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
 
   @Override
   public void onWebSocketConnect(final Session frontEndSession) {
-
     /*
      * Let's connect to the backend, this is where the Backend-to-frontend
      * plumbing takes place
@@ -113,6 +117,23 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
     super.onWebSocketConnect(frontEndSession);
     this.frontendSession = frontEndSession;
 
+    final RemoteEndpoint remote = frontEndSession.getRemote();
+    try {
+      if (messageBuffer != null) {
+        LOG.logMessage("Found old buffered messages");
+        for(String obj:messageBuffer) {
+          LOG.logMessage("Sending old buffered message [From Backend <---]: " + obj);
+          remote.sendString(obj);
+        }
+        messageBuffer = null;
+      }
+      if (remote.getBatchMode() == BatchMode.ON) {
+        remote.flush();
+      }
+    } catch (IOException e) {
+      LOG.connectionFailed(e);
+      throw new RuntimeIOException(e);
+    }
   }
 
   @Override
@@ -129,6 +150,7 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
 
   @Override
   public void onWebSocketText(final String message) {
+    LOG.logMessage("Inside onWebSocketText() API");
 
     if (isNotConnected()) {
       return;
@@ -148,6 +170,7 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
 
   @Override
   public void onWebSocketClose(int statusCode, String reason) {
+    LOG.logMessage("Inside onWebSocketClose() API");
     super.onWebSocketClose(statusCode, reason);
 
     /* do the cleaning business in seperate thread so we don't block */
@@ -164,6 +187,7 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
 
   @Override
   public void onWebSocketError(final Throwable t) {
+    LOG.logMessage("In onWebSocketError() API");
     cleanupOnError(t);
   }
 
@@ -171,6 +195,7 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
    * Cleanup sessions
    */
   private void cleanupOnError(final Throwable t) {
+    LOG.logMessage("In cleanupOnError() API");
 
     LOG.onError(t.toString());
     if (t.toString().contains("exceeds maximum size")) {
@@ -213,6 +238,7 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
 
       @Override
       public void onConnectionClose(final CloseReason reason) {
+        LOG.logMessage("In onConnectionClose() callback API");
         try {
           frontendSession.close(reason.getCloseCode().getCode(),
               reason.getReasonPhrase());
@@ -232,17 +258,38 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
 
       @Override
       public void onError(Throwable cause) {
+        LOG.logMessage("In onError() callback API");
         cleanupOnError(cause);
       }
 
       @Override
       public void onMessageText(String message, Object session) {
         final RemoteEndpoint remote = getRemote();
+        if (remote == null) {
+          LOG.logMessage("Remote endpoint is null");
+          if (messageBuffer == null) {
+             messageBuffer = new ArrayList<String>();
+          }
+          if (messageBuffer.size() >= MAX_BUFFER_MESSAGE_COUNT) {
+            throw new RuntimeIOException("Remote is null and message buffer is full. Cannot buffer anymore ");
+          }
+          LOG.logMessage("Buffering message: " + message);
+          messageBuffer.add(message);
+          return;
+        }
 
         LOG.logMessage("[From Backend <---]" + message);
 
         /* Proxy message to frontend */
         try {
+          if (messageBuffer != null) {
+            LOG.logMessage("Found old buffered messages");
+            for(String obj:messageBuffer) {
+              LOG.logMessage("Sending old buffered message [From Backend <---]: " + obj);
+              remote.sendString(obj);
+            }
+            messageBuffer = null;
+          }
           remote.sendString(message);
           if (remote.getBatchMode() == BatchMode.ON) {
             remote.flush();
@@ -252,6 +299,26 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
           throw new RuntimeIOException(e);
         }
 
+      }
+
+      @Override
+      public void onMessagePong(javax.websocket.PongMessage message, Object session) {
+        LOG.logMessage("[From Backend <---]: PING");
+        final RemoteEndpoint remote = getRemote();
+        if (remote == null) {
+          LOG.logMessage("Remote endpoint is null");
+          return;
+        }
+        /* Proxy Ping message to frontend */
+        try {
+          remote.sendPing(message.getApplicationData());
+          if (remote.getBatchMode() == BatchMode.ON) {
+            remote.flush();
+          }
+        } catch (IOException e) {
+          LOG.connectionFailed(e);
+          throw new RuntimeIOException(e);
+        }
       }
 
       @Override
@@ -267,6 +334,7 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
   }
 
   private void closeQuietly() {
+    LOG.logMessage("In closeQuietly() API");
 
     try {
       if(backendSession != null && !backendSession.isOpen()) {

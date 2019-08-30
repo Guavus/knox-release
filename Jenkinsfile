@@ -57,7 +57,7 @@ stage("RPM Build"){
     steps {
       script {
          sh 'chmod +x ./scripts/rpm-build.sh'
-          scripts "./scripts/rpm-build.sh  ${VERSION}"
+          sh "./scripts/rpm-build.sh  ${VERSION}"
       }
     }
     }

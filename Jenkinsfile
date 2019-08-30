@@ -18,8 +18,8 @@
 
 @Library('jenkins_lib')_
 pipeline {
-  agent any
- 
+    agent {label 'slave'}
+
   environment {
     // Define global environment variables in this section
     SLACK_CHANNEL = 'jenkins-misc-alerts'

@@ -23,7 +23,7 @@ pipeline {
   environment {
     // Define global environment variables in this section
     SLACK_CHANNEL = 'jenkins-misc-alerts'
-    ARCHIVE_PATH = "target/**/*.tar.gz"
+    ARCHIVE_PATH = "target/dists/rpm/*.rpm"
     SONAR_PATH = './'
 
  
@@ -53,7 +53,21 @@ pipeline {
       }
     }
     }
-
+stage("RPM Build"){
+    steps {
+      script {
+         sh 'chmod +x ./scripts/rpm-build.sh'
+          scripts "./scripts/rpm-build.sh  ${VERSION}'
+      }
+    }
+    }
+stage("RPM Push"){
+    steps {
+      script {
+       rpm_push ( 'release', 'target/dists/rpm/', 'ggn-dev-rpms/knox')
+      }
+    }
+    }
     
  
 }

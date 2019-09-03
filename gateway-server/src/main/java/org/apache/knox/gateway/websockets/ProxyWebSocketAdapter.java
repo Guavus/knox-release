@@ -22,6 +22,8 @@ import java.net.URI;
 import java.util.concurrent.ExecutorService;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.websocket.ClientEndpointConfig;
 import javax.websocket.CloseReason;
@@ -63,6 +65,7 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
 
   private List<String> messageBuffer = null;
   private static final int MAX_BUFFER_MESSAGE_COUNT = 100;
+  private Lock remoteLock = new ReentrantLock();
 
   /**
    * Used to transmit headers from browser to backend server.
@@ -114,10 +117,15 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
       throw new RuntimeIOException(e);
     }
 
+    remoteLock.lock();
     super.onWebSocketConnect(frontEndSession);
     this.frontendSession = frontEndSession;
 
     final RemoteEndpoint remote = frontEndSession.getRemote();
+    if (remote == null) {
+      LOG.logMessage("In onWebSocketConnect(). Remote endpoint is null");
+    }
+
     try {
       if (messageBuffer != null) {
         LOG.logMessage("Found old buffered messages");
@@ -126,13 +134,19 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
           remote.sendString(obj);
         }
         messageBuffer = null;
-      }
-      if (remote.getBatchMode() == BatchMode.ON) {
-        remote.flush();
+        if (remote.getBatchMode() == BatchMode.ON) {
+          remote.flush();
+        }
+      } else {
+        LOG.logMessage("Message buffer is empty");
       }
     } catch (IOException e) {
       LOG.connectionFailed(e);
       throw new RuntimeIOException(e);
+    }
+    finally
+    {
+      remoteLock.unlock();
     }
   }
 
@@ -264,6 +278,8 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
 
       @Override
       public void onMessageText(String message, Object session) {
+        LOG.logMessage("[From Backend <---]" + message);
+        remoteLock.lock();
         final RemoteEndpoint remote = getRemote();
         if (remote == null) {
           LOG.logMessage("Remote endpoint is null");
@@ -275,10 +291,9 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
           }
           LOG.logMessage("Buffering message: " + message);
           messageBuffer.add(message);
+          remoteLock.unlock();
           return;
         }
-
-        LOG.logMessage("[From Backend <---]" + message);
 
         /* Proxy message to frontend */
         try {
@@ -290,6 +305,7 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
             }
             messageBuffer = null;
           }
+          LOG.logMessage("Sending current message [From Backend <---]: " + message);
           remote.sendString(message);
           if (remote.getBatchMode() == BatchMode.ON) {
             remote.flush();
@@ -298,19 +314,35 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
           LOG.connectionFailed(e);
           throw new RuntimeIOException(e);
         }
+        finally
+        {
+          remoteLock.unlock();
+        }
 
       }
 
       @Override
       public void onMessagePong(javax.websocket.PongMessage message, Object session) {
         LOG.logMessage("[From Backend <---]: PING");
+        remoteLock.lock();
         final RemoteEndpoint remote = getRemote();
         if (remote == null) {
-          LOG.logMessage("Remote endpoint is null");
+          LOG.logMessage("In onMessagePong(). Remote endpoint is null");
+          remoteLock.unlock();
           return;
         }
         /* Proxy Ping message to frontend */
         try {
+          if (messageBuffer != null) {
+            LOG.logMessage("Found old buffered messages");
+            for(String obj:messageBuffer) {
+              LOG.logMessage("Sending old buffered message [From Backend <---]: " + obj);
+              remote.sendString(obj);
+            }
+            messageBuffer = null;
+          }
+
+          LOG.logMessage("Sending current PING [From Backend <---]: ");
           remote.sendPing(message.getApplicationData());
           if (remote.getBatchMode() == BatchMode.ON) {
             remote.flush();
@@ -318,6 +350,10 @@ public class ProxyWebSocketAdapter extends WebSocketAdapter {
         } catch (IOException e) {
           LOG.connectionFailed(e);
           throw new RuntimeIOException(e);
+        }
+        finally
+        {
+          remoteLock.unlock();
         }
       }
 

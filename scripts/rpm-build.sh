@@ -71,7 +71,7 @@ jar_names_update() {
 
 generate_rpm() {
    PACKAGE_NAME=$(echo "knox.${REL_VERSION}.${REL_NUMBER}" | sed 's/\./_/g')
-   fpm -s dir -t rpm --before-install scripts/pre-install.sh --after-install scripts/post-install.sh --before-remove scripts/pre-uninstall.sh --after-remove scripts/post-uninstall.sh -v ${RPM_VERSION} --iteration ${REL_NUMBER}_${BUILD_NUMBER} -a noarch -C ${RPM_DIR} -p ${RPM_DIR} -n ${PACKAGE_NAME} usr/ var/
+   fpm -s dir -t rpm  -d '/usr/bin/env' -d '/bin/bash' -d 'rpmlib(FileDigests) <= 4.6.0-1' -d 'rpmlib(PayloadIsXz) <= 5.2-1' -d 'config(knox_3_1_0_0_78) = 1.0.0.3.1.0.0-78' -d 'ranger_3_1_0_0_78-knox-plugin' -d 'hdp-select >= 3.1.0.0-78' --before-install scripts/pre-install.sh --after-install scripts/post-install.sh --before-remove scripts/pre-uninstall.sh --after-remove scripts/post-uninstall.sh -v ${RPM_VERSION} --iteration ${REL_NUMBER}_${BUILD_NUMBER} -a noarch -C ${RPM_DIR} -p ${RPM_DIR} -n ${PACKAGE_NAME} usr/ var/
 }
 
 cleanup() {

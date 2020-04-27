@@ -68,7 +68,7 @@
     </service>
 
     <service name="WEBHBASE">
-        <url-pattern>http://{HOST}:{REST_PORT}</url-pattern>
+        <url-pattern>{SCHEME}://{HOST}:{REST_PORT}</url-pattern>
         <properties>
             <property name="HOST">
                 <component>HBASE_MASTER</component>
@@ -78,11 +78,23 @@
                 <component>HBASE_MASTER</component>
                 <config-property>hbase.rest.port</config-property>
             </property>
+            <property name="REST_SSL">
+                <component>HBASE_MASTER</component>
+                <config-property>hbase.rest.ssl.enabled</config-property>
+            </property>
+            <property name="SCHEME">
+                 <config-property>
+                    <if property="REST_SSL" value="true">
+                        <then>https</then>
+                        <else>http</else>
+                    </if>
+                </config-property>
+            </property>
         </properties>
     </service>
 
     <service name="HBASEUI">
-        <url-pattern>http://{HOST}:{MASTER_PORT}</url-pattern>
+        <url-pattern>{SCHEME}://{HOST}:{MASTER_PORT}</url-pattern>
         <properties>
             <property name="HOST">
                 <component>HBASE_MASTER</component>
@@ -91,6 +103,18 @@
             <property name="MASTER_PORT">
                 <component>HBASE_MASTER</component>
                 <config-property>hbase.master.info.port</config-property>
+            </property>
+            <property name="HBASE_SSL">
+                <component>HBASE_MASTER</component>
+                <config-property>hbase.ssl.enabled</config-property>
+            </property>
+            <property name="SCHEME">
+                 <config-property>
+                    <if property="HBASE_SSL" value="true">
+                        <then>https</then>
+                        <else>http</else>
+                    </if>
+                </config-property>
             </property>
         </properties>
     </service>

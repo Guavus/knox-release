@@ -19,9 +19,9 @@
 if [ !  -e "/etc/knox/conf" ]; then
     rm -f /etc/knox/conf
     mkdir -p /etc/knox/conf
-    cp -rp  /usr/hdp/3.1.0.0-78/etc/knox/conf/* /etc/knox/conf
+    cp -rp  /usr/hdp/3.1.4.0-315/etc/knox/conf/* /etc/knox/conf
 fi
-/usr/bin/hdp-select --rpm-mode set knox-server 3.1.0.0-78
+/usr/bin/hdp-select --rpm-mode set knox-server 3.1.4.0-315
 #if [ -e /usr/hdp/current//knox-server//etc/rc.d/init.d/knox-gateway-server  ]
 #then
 #    if ! readlink -e /etc/rc.d/init.d/knox-gateway-server     > /dev/null 2>&1
@@ -33,10 +33,10 @@ fi
 #chkconfig   knox-gateway-server off
 
 ##############################
-#alternatives --install /etc/knox/conf knox_3_1_0_0_78-conf /usr/hdp/3.1.0.0-78/etc/knox/conf 30
+#alternatives --install /etc/knox/conf knox_3_1_4_0_315-conf /usr/hdp/3.1.4.0-315/etc/knox/conf 30
 # Generate a random master secret.
-# su -l knox -c "/usr/hdp/3.1.0.0-78/knox/bin/knoxcli.sh create-master --generate"
+# su -l knox -c "/usr/hdp/3.1.4.0-315/knox/bin/knoxcli.sh create-master --generate"
 # Generate a self-signed SSL identity certificate.
-# su -l knox -c "/usr/hdp/3.1.0.0-78/knox/bin/knoxcli.sh create-cert --hostname $(hostname -f)"
+# su -l knox -c "/usr/hdp/3.1.4.0-315/knox/bin/knoxcli.sh create-cert --hostname $(hostname -f)"
 
 ##############################

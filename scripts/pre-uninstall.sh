@@ -17,7 +17,7 @@
 
 ##############################
 #if [ "$1" = "0" ]; then
-#    #alternatives --remove knox_3_1_0_0_78-distributed-conf %{conf_dist} || :
+#    #alternatives --remove knox_3_1_4_0_315-distributed-conf %{conf_dist} || :
 #    service  knox-gateway-server stop
 #    chkconfig --del  knox-gateway-server
 #    rm -rf /etc/rc.d/init.d/knox-gateway-server

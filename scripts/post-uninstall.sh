@@ -22,7 +22,7 @@
     #/usr/bin/rm -rf /var/run/knox
     #/usr/bin/rm -rf %{home_dir}
     #/usr/bin/rm -rf %{ext_dir}
-    #/usr/bin/rm -rf /usr/hdp/3.1.0.0-78/knox
+    #/usr/bin/rm -rf /usr/hdp/3.1.4.0-315/knox
     #/usr/sbin/userdel --force knox 2> /dev/null; true
     #/usr/sbin/groupdel knox 2> /dev/null; true
 #fi

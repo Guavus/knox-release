@@ -25,7 +25,7 @@ POM_VERSION=$1
 
 RPM_VERSION=$(echo $POM_VERSION | awk -F'-' '{print $1}' | sed 's/3.1.4/3.1.4.0/g' | awk 'BEGIN{FS=OFS="."}{NF--; print}')
 REL_VERSION=$(echo $POM_VERSION | sed 's/1.0.0.//g' | awk -F'-' '{print $1}' | sed 's/3.1.4/3.1.4.0/g' | awk 'BEGIN{FS=OFS="."}{NF--; print}')
-REL_NUMBER=$(echo $POM_VERSION | sed 's/1.0.0.//g' | awk -F'-' '{print $1}' | sed 's/3.1.4/3.1.4.0/g' | awk -F'.' '{print $NF}')
+REL_NUMBER=$(echo $POM_VERSION | cut -d'-' -f2)
 #################################
 #
 # POM_VERSTION = 1.0.0.3.1.4.0-315

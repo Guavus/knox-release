@@ -22,17 +22,16 @@
 
 TARGET_DIR="target"
 POM_VERSION=$1
-1.0.0.3.1.4.0-315
 
 RPM_VERSION=$(echo $POM_VERSION | awk -F'-' '{print $1}' | sed 's/3.1.4/3.1.4.0/g' | awk 'BEGIN{FS=OFS="."}{NF--; print}')
 REL_VERSION=$(echo $POM_VERSION | sed 's/1.0.0.//g' | awk -F'-' '{print $1}' | sed 's/3.1.4/3.1.4.0/g' | awk 'BEGIN{FS=OFS="."}{NF--; print}')
 REL_NUMBER=$(echo $POM_VERSION | sed 's/1.0.0.//g' | awk -F'-' '{print $1}' | sed 's/3.1.4/3.1.4.0/g' | awk -F'.' '{print $NF}')
 #################################
 #
-# POM_VERSTION = 1.0.0.3.1.0.78-4
-# RPM_VERSION = 1.0.0.3.1.0.0
-# REL_VERSION = 3.1.0.0
-# REL_NUMBER = 78
+# POM_VERSTION = 1.0.0.3.1.4.0-315
+# RPM_VERSION = 1.0.0.3.1.4.0
+# REL_VERSION = 3.1.4.0
+# REL_NUMBER = 315
 #
 #################################
 

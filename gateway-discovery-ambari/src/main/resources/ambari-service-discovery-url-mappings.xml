@@ -514,15 +514,31 @@
     <service name="JOBHISTORYUI">
         <url-pattern>{JOBHISTORY_WEBAPP_ADDRESS}</url-pattern>
         <properties>
-            <property name="JOBHISTORY_WEBAPP_ADDRESS">
+            <property name="HTTP_ADDRESS">
                 <component>HISTORYSERVER</component>
                 <config-property>mapreduce.jobhistory.webapp.address</config-property>
+            </property>
+            <property name="HTTPS_ADDRESS">
+                <component>HISTORYSERVER</component>
+                <config-property>mapreduce.jobhistory.webapp.https.address</config-property>
+            </property>
+            <property name="TLS_SSL">
+                <component>HISTORYSERVER</component>
+                <config-property>mapreduce.jobhistory.http.policy</config-property>
+            </property>
+            <property name="JOBHISTORY_WEBAPP_ADDRESS">
+                <config-property>
+                    <if property="TLS_SSL" value="HTTPS_ONLY">
+                        <then>HTTPS_ADDRESS</then>
+                        <else>HTTP_ADDRESS</else>
+                    </if>
+                </config-property>
             </property>
         </properties>
     </service>
 
     <service name="SOLR">
-        <url-pattern>http://{HOST}:{PORT}</url-pattern>
+        <url-pattern>{SCHEME}://{HOST}:{PORT}</url-pattern>
         <properties>
             <property name="HOST">
                 <component>INFRA_SOLR</component>
@@ -531,6 +547,18 @@
             <property name="PORT">
                 <component>INFRA_SOLR</component>
                 <config-property>infra_solr_port</config-property>
+            </property>
+            <property name="SOLR_SSL">
+                <component>INFRA_SOLR</component>
+                <config-property>infra_solr_ssl_enabled</config-property>
+            </property>
+            <property name="SCHEME">
+                 <config-property>
+                    <if property="SOLR_SSL" value="true">
+                        <then>https</then>
+                        <else>http</else>
+                    </if>
+                 </config-property>
             </property>
         </properties>
     </service>
